@@ -134,6 +134,21 @@ beta# : (n : Nat){P : Fin n -> Set}(f : (i : Fin n) -> P i)
 beta# (su n) f (# ze) = r~
 beta# (su n) f (# (su i) {l}) = beta# n (fs - f) (# i {l})
 
+extIn# : {n : Nat}{P : Fin n -> Set}{f f' : n #* P}{g g' : (i : Fin n) -> P i}
+  -> f #$~ g -> f' #$~ g' -> ((i : Fin n) -> g i ~ g' i)
+  -> f ~ f'
+extIn#' : (n : Nat){P : Fin n -> Set}{f f' : n #*' P}{g g' : (i : Fin n) -> P i}
+  -> (forall i -> (#[ n ] f $ i)  ~ g i)
+  -> (forall i -> (#[ n ] f' $ i)  ~ g' i)
+  -> ((i : Fin n) -> g i ~ g' i)
+  -> f ~ f'
+extIn# {n} {f = < f >}{< f' >} a b q = rf <_> ~$~ extIn#' n a b q
+extIn#' ze a b q = r~
+extIn#' (su n) a b q =
+  rf _,_
+  ~$~ (_ ~[ a (# 0) > _ ~[ q (# 0) > _ < b (# 0) ]~ _ [QED])
+  ~$~ extIn# (fs - a) (fs - b) (fs - q)
+
 data _#>_ (S : UF)(T : ElF S -> Set) : Set
 _#>'_ : (S : UF)(T : ElF S -> Set) -> Set
 
@@ -158,7 +173,7 @@ _$$_ : {S : UF}{T : ElF S -> Set} -> S #> T -> ((s : ElF S) -> T s)
 _$$_ {S} < f > s = [ S ] f $ s
 [ `1 ] t $ <> = t
 [ `Fin n ] f $ s = f #$ s
-[ R `>< S ] < f > $ (r , s) = ([ R ] f $ r) $$ s
+[ R `>< S ] f $ (r , s) = f $$ r $$ s
 
 infixl 50 _$$_
 
@@ -180,6 +195,23 @@ beta' (R `>< S) f (r , s) =
 
 eta : {S : UF}{T : ElF S -> Set}(f : S #> T) -> f $~ \ s -> f $$ s
 eta f s = r~
+
+extIn : {S : UF}{T : ElF S -> Set}{f f' : S #> T}{g g' : (s : ElF S) -> T s}
+  -> f $~ g -> f' $~ g' -> ((s : ElF S) -> g s ~ g' s)
+  -> f ~ f'
+extIn' : (S : UF){T : ElF S -> Set}{f f' : S #>' T}{g g' : (s : ElF S) -> T s}
+  -> ((s : ElF S) → ([ S ] f $ s) ~ g s)
+  -> ((s : ElF S) → ([ S ] f' $ s) ~ g' s)
+  -> ((s : ElF S) -> g s ~ g' s)
+  -> f ~ f'
+extIn {S} {f = < f >} {< f' >} a b q = rf <_> ~$~ extIn' S a b q
+extIn' `0 a b q = r~
+extIn' `1 a b q with r~ <- a <> | r~ <- b <> = q <>
+extIn' (`Fin n) a b q = extIn# a b q
+extIn' (S `>< T) {f = f}{f'}{g}{g'} a b q =
+  extIn {S} {g = f $$_}{f' $$_} (\ _ -> r~) (\ _ -> r~)
+    \ s -> extIn {T s} {g = (s ,_) - g}{(s ,_) - g'}
+             ((s ,_) - a) ((s ,_) - b) ((s ,_) - q)
 
 record Ctn : Set where
   constructor _<!_
@@ -238,27 +270,53 @@ module _ {C : Ctn}{X : Set} where
   rec : (t : C <* X) -> Rec t
   rec = recIO []
 
-data Subst {C : Ctn}{X Y : Set}(f : X -> C <* Y)
-  : C <* X -> C <* Y -> Set
-  where
-  
-  <_/_/_> : (s : ElF (Sh C)){k : Po C s #> \ _ -> C <* X}
-    {m : Po C s #> \ _ -> C <* Y}
-    {l : ElF (Po C s) -> C <* Y}
-    -> m $~ l ->
-    (r : (p : ElF (Po C s)) -> Subst f (k $$ p) (l p))
-    -> Subst f < s , k > < s , m >
-    
-  ! : (x : X) -> Subst f (! x) (f x)
+module _ {C : Ctn} where
 
-subst : {C : Ctn}{X Y : Set}(f : X -> C <* Y)(t : C <* X) -> <: Subst f t :>
-subst {C}{X}{Y} f t = help (rec t) where
-  help : {t : C <* X} -> Rec t -> (C <* Y) >< Subst f t
-  help < s / r > = _ , < s / beta _ / (\ p -> help (r p) .snd) >
-  help (! x) = f x , ! x
+  module _ {X Y : Set}(f : X -> C <* Y) where
 
-_>>=_ : {C : Ctn}{X Y : Set}(t : C <* X)(f : X -> C <* Y) -> C <* Y
-t >>= f = fst (subst f t)
+    data Subst : C <* X -> C <* Y -> Set
+      where
+
+      <_/_> : (s : ElF (Sh C)){k : Po C s #> \ _ -> C <* X}
+        {m : Po C s #> \ _ -> C <* Y}
+        (r : (p : ElF (Po C s)) -> Subst (k $$ p) (m $$ p))
+        -> Subst < s , k > < s , m >
+
+      ! : (x : X) -> Subst (! x) (f x)
+
+    subst : (t : C <* X) -> <: Subst t :>
+    subst = rec - help where
+      help : {t : C <* X} -> Rec t -> (C <* Y) >< Subst t
+      help < s / r > =
+        let j = \ p -> fst (help (r p)) in
+        let jq = \ p -> snd (help (r p)) in
+
+        < s , \\ j > ,
+        < s / (\ p -> leib (_ < beta' (Po C s) j p ]~ _ [QED]) (Subst _) (jq p)) >
+      help (! x) = f x , ! x
+
+  _>>=_ : {X Y : Set}(t : C <* X)(f : X -> C <* Y) -> C <* Y
+  t >>= f = fst (subst f t)
+
+  substFun : {X Y : Set}{f g : X -> C <* Y}(t : C <* X) ->
+    (fg : (x : X) -> f x ~ g x) ->
+    {u v : C <* Y} -> Subst f t u -> Subst g t v -> u ~ v
+  substFun t q < s / r > < .s / u > = rf ((s ,_) - <_>)
+    ~$~ extIn (\ _ -> r~) (\ _ -> r~) (\ p -> substFun _ q (r p) (u p))
+  substFun t q (! x) (! .x) = q x
+
+  substId : {X : Set}{f : X -> C <* X}(fi : (x : X) -> ! x ~ f x)
+    -> {t u : C <* X} -> Subst f t u -> t ~ u
+  substId fi < s / r > =
+    rf ((s ,_) - <_>) ~$~ extIn (\ _ -> r~) (\ _ -> r~) (\ p -> substId fi (r p))
+  substId fi (! x) = fi x
+
+  substAsso : {X Y Z : Set}{f : X -> C <* Y}{g : Y -> C <* Z}{h : X -> C <* Z}
+    -> ((x : X) -> Subst g (f x) (h x))
+    -> {r : C <* X}{s : C <* Y}{t : C <* Z}
+    -> Subst f r s -> Subst g s t -> Subst h r t
+  substAsso q < s / i > < .s / j > = < s / (\ p -> substAsso q (i p) (j p)) >
+  substAsso q (! x) st with r~ <- substFun _ (\ _ -> r~) st (q x) = ! x
 
 _-*>_ : Ctn -> Ctn -> Set
 (S <! P) -*> C = S #> \ s -> C <* ElF (P s)
@@ -266,7 +324,8 @@ _-*>_ : Ctn -> Ctn -> Set
 module _ {C D : Ctn}(f : C -*> D){X : Set} where
 
   data Cata : C <* X -> D <* X -> Set where
-    <_/_/_> : (s : ElF (Sh C)){k : Po C s #> \ _ -> C <* X}{l : ElF (Po C s) -> D <* X} ->
+    <_/_/_> : (s : ElF (Sh C)){k : Po C s #> \ _ -> C <* X}
+      {l : ElF (Po C s) -> D <* X} ->
       (r : (p : ElF (Po C s)) -> Cata (k $$ p) (l p)) ->
       {t : D <* X} -> Subst l (f $$ s) t
       -> Cata < s , k > t
@@ -278,6 +337,27 @@ module _ {C D : Ctn}(f : C -*> D){X : Set} where
 
   cata : C <* X -> D <* X
   cata x = fst (cataHelp (rec x))
+
+  cataFun : {x : C <* X}{y z : D <* X} -> Cata x y -> Cata x z -> y ~ z
+  cataFun < s / r / x > < .s / t / y > =
+    substFun _ (\ p -> cataFun (r p) (t p))
+      x y
+  cataFun (! x) (! .x) = r~
+
+module _ {X Y : Set}{C D : Ctn}{f : X -> C <* Y}{g : C -*> D} where
+
+  substCata : {a : C <* X}{b : C <* Y} -> Subst f a b
+           -> {d : D <* Y} -> Cata g b d
+           -> {h : X -> D <* Y}
+           -> (fh : (x : X) -> Cata g (f x) (h x))
+           -> {c : D <* X} -> Cata g a c
+           -> Subst h c d
+  substCata < s / r0 > < .s / r1 / x1 > {h} fh {c} < .s / r2 / x2 >
+    with e , q <- subst h c
+    with v <- substAsso (\ p -> substCata (r0 p) (r1 p) fh (r2 p)) x2 q
+    with r~ <- substFun _ (\ _ -> r~) x1 v
+    = q
+  substCata (! x) gbd fh (! .x) with r~ <- cataFun g (fh x) gbd = ! x
 
 module _ {C : Ctn} where
 
@@ -293,9 +373,9 @@ module _ {C : Ctn} where
     idCataHelp (<_/_> s {k} r) =
       < s / (\ p -> idCataHelp (r p)) /
         leib (idLem s) (\ z -> Subst (\ z -> k $$ z) z < s , k >)
-        < s / (\ _ -> r~) / (\ p -> 
-           leib (_ < beta' (C .Po s) ! p ]~ _ [QED]) (\ a -> Subst (\ z -> k $$ z) a (k $$ p))
-           (! p)) >
+        < s / (\ p -> leib (_ < beta' (C .Po s) ! p ]~ _ [QED])
+                      (\ a -> Subst (\ z -> k $$ z) a (k $$ p))
+                      (! p)) >
         >
     idCataHelp (! x) = ! x
 
@@ -306,9 +386,17 @@ module _ {C D E : Ctn}(f : C -*> D)(g : D -*> E){X : Set} where
 
   coCata : {c : C <* X}{d : D <* X}{e : E <* X}
     -> Cata f c d -> Cata g d e -> Cata _-then_ c e
-  coCata < s / r / x > de
-    = < s / (\ p -> coCata (r p) {!!}) / {!!} >
+  coCata (<_/_/_> s {k} {l} r x) d =
+    let j = \ p -> cataHelp g (rec (l p)) in
+    let c , m = cataHelp g (rec (f $$ s)) in
+    < s / (\ p -> coCata (r p) (snd (j p))) /
+      leib (c < beta' (C .Sh) ((f $$_) - cata g) s ]~
+            ([ C .Sh ] [ C .Sh ]\ ((f $$_) - cata g) $ s)
+            [QED])
+        (\ t -> Subst _ t _) (substCata x d (j - snd) m)
+      >
   coCata (! x) (! .x) = ! x
+
 
 data UD : Set where
   Tt : UD
