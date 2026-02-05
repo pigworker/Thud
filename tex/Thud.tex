@@ -1,5 +1,9 @@
 \documentclass{article}
 \usepackage{a4}
+\usepackage{stmaryrd}
+%\usepackage{mathabx}
+\usepackage{amsmath}
+\usepackage{amssymb}
 
 \newcommand{\D}[1]{\mathsf{#1}}
 \newcommand{\C}[1]{\mathsf{#1}}
@@ -65,7 +69,70 @@ exactly one $\thud$ with a $\blunder$.
 Here is how I do it. First, I choose $\V{leafy} = \F{mystery}\:\leaf = \F{mystery}\:\thud$. So far, so good.
 Next, I construct $\V{nodey}$ by exploring $\F{mystery}\:(\node\thud\thud)$ to see wherein it has my $\V{leafy}$ but $\F{mystery}\:\mbox{`blunderthud'}$ or from $\F{mystery}\:\mbox{`thudblunder'}$ do not These are the telltale signs that replacing $\thud$ by $\blunder$ has made a difference. I place $\C{ll}$ to mark discrepancy with $\F{mystery}\:\mbox{`blunderthud'}$ and, otherwise, $\C{rr}$ to mark discrepancy with $\F{mystery}\:\mbox{`thudblunder'}$. I am now sure that my $\F{transform}$ and your $\F{mystery}$ agree on both $\thud$ and $\blunder$, at least, even if they differ elsewhere: there are plenty of $\F{mystery}$ functions which are not $\F{transform}s$, and they may very well do so.
 
-But I promise you that if your $\F{mystery}$ \emph{is} a $\F{transform}$ and it fails to distinguish $\thud$ from $\blunder$, then it is constant, and if it \emph{does} tell them apart, then I shall indeed compute exactly the $\V{leafy}$ and $\V{nodey}$ you chose!
+But I can prove that if your $\F{mystery}$ \emph{is} a $\F{transform}$ and it fails to distinguish $\thud$ from $\blunder$, then it is constant, and if it \emph{does} tell them apart, then I shall indeed compute exactly the $\V{leafy}$ and $\V{nodey}$ you chose!
 
+
+\section{Finite Types, Finitary Containers, Free Monads}
+
+\newcommand{\q}[1]{\mbox{`}\!#1\!\mbox{'}}
+\newcommand{\UF}{\D{UF}}
+\newcommand{\Ctn}{\D{Ctn}}
+\newcommand{\tf}{\mathop{\sqsupset}}
+\newcommand{\Sh}[1]{#1\,.\mathsf{Sh}}
+\newcommand{\Po}[1]{#1\,.\mathsf{Po}}
+\newcommand{\ctn}[2]{#1 \triangleleft #2}
+
+
+Binary trees come in two \emph{shapes}, $\{\q\leaf,\q{\node{}{}}\}$ and for each shape we can give the set of their \emph{positions} for substructures --- leaves have none and nodes have two:
+\[
+\q\leaf \mapsto \{\} \qquad \q{\node{}{}}\mapsto\{\C{ll},\C{rr}\}
+\]
+
+It is reassuring that these types are finite and enumerable. Let us
+cling to the small. In particular, let us imagine that we have a
+(small) type $\UF$ of (descriptions of) finite types. Perhaps we might
+reify $\UF$ by means of a universe construction. How we do so is not
+locally important, but it is interesting to identify requirements for
+the thing. If we have some $X\hab\UF$, I shall cheerfully take $X$ to
+be a type, with no notation for the translation. (What joy to be
+Russell and Tarski at once!)
+
+I certainly expect to be able to encode enumerations such as $\{\}$
+and $\{\C{ll},\C{rr}\}$ in $\UF$, but I expect other structure,
+besides. In particular, I shall need dependent
+\emph{pair} types\footnote{Some people call these `sums'. Other people
+call these `products'. The fact that both of these names are used
+means neither of them helps.}:
+\[
+  (x\hab S)\times T[x]
+\]
+which is in $\UF$ if both $S$ and $T[x]$ are.
+
+However, where our types include dependent function types
+\[
+  (x\hab S)\to T[x]
+\]
+$\UF$ allows us to \emph{tabulate} functions.
+\[
+  (x\hab S)\tf T[x]
+\]
+where $S$ is in $\UF$, meaning that a function can be encoded as a
+tuple of $T[x]$s, and the whole type is in $\UF$ if $T[x]$ is. Crucially,
+if $S$ is in $UF$, we can enumerate every possible input to such a function
+and thus visit every possible output.
+
+From these finite types, we can build finitary \emph{containers} $C\hab\Ctn$
+to express what it is to be a `layer of structure'. Such a $C$ is given by
+\[
+\Sh C \hab \UF \quad\mbox{`shapes'} \qquad\qquad\qquad \Po C\hab \Sh C \to\UF\quad\mbox{`positions'}
+\]
+We may also write $\ctn SP$ for the container with shape set $S$ and position family $P$, and sometimes
+$\ctn{(x\hab S)}{P[x]}$ instead of $\ctn{S}{\lambda x\mapsto P[x]}$.
+
+Crucially, for any such $C = \ctn SP$, we write $C\:X$ for the \emph{extension} of the container, i.e., the type
+\[
+(s\hab S)\times (p\hab P\:s)\tf X
+\]
+which you can think of as a tag chosen from $S$ paired with a tuple of $X$s whose size (and structure) is determined from the tag by $P$. Our binary tree generators form a fine example!
 
 \end{document}
