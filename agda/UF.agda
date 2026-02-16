@@ -19,7 +19,7 @@ _`*_ _`+_ : UF -> UF -> UF
 S `* T = S `>< \ _ -> T
 S `+ T = `Fin 2 `>< (S <01> T)
 
-
+-- bleu et vert for vectors
 data _#*_ (n : Nat)(P : Fin n -> Set) : Set
 _#*'_ : (n : Nat)(P : Fin n -> Set) -> Set
 
@@ -64,18 +64,22 @@ extIn#' (su n) a b q =
   ~$~ (_ ~[ a (# 0) > _ ~[ q (# 0) > _ < b (# 0) ]~ _ [QED])
   ~$~ extIn# (fs - a) (fs - b) (fs - q)
 
-data _#>_ (S : UF)(T : ElF S -> Set) : Set
-_#>'_ : (S : UF)(T : ElF S -> Set) -> Set
+data _#>_ (S : UF)(T : ElF S -> Set) : Set   -- bleu
+_#>'_ : (S : UF)(T : ElF S -> Set) -> Set    -- et vert
 
-data _#>_ S T where
+data _#>_ S T where  -- bleu is a rigid type constructor
+  -- bleu wraps vert
   <_> : S #>' T -> S #> T
 
-`0 #>' T = One
-`1 #>' T = T <>
-`Fin n #>' T = n #* T
+-- vert computes compounds with bleu components
+`0        #>' T = One
+`1        #>' T = T <>
+`Fin n    #>' T = n #* T
 (R `>< S) #>' T = R #> \ r -> S r #> \ s -> T (r , s)
 
+-- bleu lambda needs no type annotation
 \\ : {S : UF}{T : ElF S -> Set} -> ((s : ElF S) -> T s) -> S #> T
+-- vert lambda must have an explicit domain
 [_]\ : (S : UF){T : ElF S -> Set} -> ((s : ElF S) -> T s) -> S #>' T
 \\ {S} f = < [ S ]\ f >
 [ `0 ]\ f = <>
@@ -83,7 +87,9 @@ data _#>_ S T where
 [ `Fin n ]\ f = #\ f 
 [ R `>< S ]\ f = <( [ R ]\ \ r -> \\ \ s -> f (r , s) )>
 
+-- likewise bleu application
 _$$_ : {S : UF}{T : ElF S -> Set} -> S #> T -> ((s : ElF S) -> T s)
+-- likewise vert application
 [_]_$_ : (S : UF){T : ElF S -> Set} -> S #>' T -> ((s : ElF S) -> T s)
 _$$_ {S} < f > s = [ S ] f $ s
 [ `1 ] t $ <> = t
@@ -92,6 +98,7 @@ _$$_ {S} < f > s = [ S ] f $ s
 
 infixl 50 _$$_
 
+-- tabulation, the relation
 _$~_ : {S : UF}{T : ElF S -> Set}(f : S #> T)(g : (s : ElF S) -> T s) -> Set
 _$~_ {S} f g = (s : ElF S) -> (f $$ s) ~ g s
 
@@ -111,6 +118,9 @@ beta' (R `>< S) f (r , s) =
 eta : {S : UF}{T : ElF S -> Set}(f : S #> T) -> f $~ \ s -> f $$ s
 eta f s = r~
 
+{- Suppose f tabulates g and f' tabulates g'.
+   If g and g' agree *pointwise*, then f and f' agree *exactly*.
+-}
 extIn : {S : UF}{T : ElF S -> Set}{f f' : S #> T}{g g' : (s : ElF S) -> T s}
   -> f $~ g -> f' $~ g' -> ((s : ElF S) -> g s ~ g' s)
   -> f ~ f'
@@ -159,3 +169,6 @@ inn {`0} {T} f = <>
 inn {`1} {T} < t > = t
 inn {`Fin n} {T} < ts > = inn# n ts
 inn {R `>< S} {T} < f > = inn {R} (\\ \ r -> inn {S r} (\\ \ s -> f $$ r $$ s))
+
+
+-- TODO: prove inn and out are mutually inverse

@@ -4,16 +4,30 @@ open import Basics
 open import UF
 open import Ctn
 
+
+-- TEMPLATES FOR FOLDS
+-- aka Kleisli arrows in the free monad monad
+_-*>_ : Ctn -> Ctn -> Set
+(S <! P) -*> C = S #> \ s -> C <* ElF (P s)
+    -- for each input shape, say where in the output to slot the recursive output for each input position
+
+
 module _ {C D : Ctn}(f : C -*> D){X : Set} where
 
-  data Cata : C <* X -> D <* X -> Set where
-    <_/_/_> : (s : ElF (Sh C)){k : Po C s #> \ _ -> C <* X}
-      {l : ElF (Po C s) -> D <* X} ->
-      (r : (p : ElF (Po C s)) -> Cata (k $$ p) (l p)) ->
-      {t : D <* X} -> Subst l (f $$ s) t
-      -> Cata < s , k > t
-    ! : (x : X) -> Cata (! x) (! x)
+  -- Morally, this is Kleisli extension for the free monad monad!
 
+  -- First, define it relationally
+  data Cata : C <* X -> D <* X -> Set where
+    <_/_/_> : (s : ElF (Sh C)){k : Po C s #> \ _ -> C <* X}  -- shape and subterms
+      {l : ElF (Po C s) -> D <* X} ->
+      -- ^^^ our collection of recursively computed outputs for subterm in each position
+      (r : (p : ElF (Po C s)) -> Cata (k $$ p) (l p)) ->
+       --  ^^^^^^^^ projection-based access
+      {t : D <* X} -> Subst l (f $$ s) t  -- substitute recursive output in template for given shape
+      -> Cata < s , k > t
+    ! : (x : X) -> Cata (! x) (! x)   -- variables stay put
+
+  -- it's computable
   cataHelp : {x : C <* X}(r : Rec x) -> <: Cata x :>
   cataHelp < s / r > = _ , < s / (\ p -> snd (cataHelp (r p))) / snd (subst _ (f $$ s)) >
   cataHelp (! x) = _ , ! x
@@ -21,6 +35,7 @@ module _ {C D : Ctn}(f : C -*> D){X : Set} where
   cata : C <* X -> D <* X
   cata x = fst (cataHelp (rec x))
 
+  -- it's functional
   cataFun : {x : C <* X}{y z : D <* X} -> Cata x y -> Cata x z -> y ~ z
   cataFun < s / r / x > < .s / t / y > =
     substFun _ (\ p -> cataFun (r p) (t p))
@@ -29,8 +44,10 @@ module _ {C D : Ctn}(f : C -*> D){X : Set} where
 
 module _ {C : Ctn} where
 
+  -- identity Kleisli arrows in the free monad monad
+
   id* : C -*> C
-  id* = \\ \ s -> < s , (\\ \ p -> ! p) >
+  id* = \\ \ s -> < s , \\ ! >
 
   idLem : (s : ElF (C .Sh)) ->  < s , \\ ! > ~ (id* $$ s)
   idLem s = < s , \\ ! > < beta' (C .Sh) (\ s -> < s , \\ ! >) s ]~ (id* $$ s) [QED]
@@ -49,6 +66,8 @@ module _ {C : Ctn} where
 
 module _ {X Y : Set}{C D : Ctn}{f : X -> C <* Y}{g : C -*> D} where
 
+  -- "bind" for the free monad monad
+
   substCata : {a : C <* X}{b : C <* Y} -> Subst f a b
            -> {d : D <* Y} -> Cata g b d
            -> {h : X -> D <* Y}
@@ -63,6 +82,8 @@ module _ {X Y : Set}{C D : Ctn}{f : X -> C <* Y}{g : C -*> D} where
   substCata (! x) gbd fh (! .x) with r~ <- cataFun g (fh x) gbd = ! x
 
 module _ {C D E : Ctn}(f : C -*> D)(g : D -*> E){X : Set} where
+
+  -- Kleisli composition for the free monad monad
 
   _-then_ : C -*> E
   _-then_ = \\ \ cs -> cata g (f $$ cs)

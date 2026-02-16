@@ -5,6 +5,7 @@ open import UF
 open import Ctn
 open import Cata
 open import UD
+open import CtnEq
 
 
 decideMu : (C : Ctn) -> (Mu C -> Zero) + Mu C
@@ -20,4 +21,10 @@ BTree : Ctn
 BTree .Sh = `Fin 2
 BTree .Po (# 0) = `0
 BTree .Po (# 1) = `Fin 2
+
+thudBasis : (C : Ctn) -> UF >< \ B -> B #> \ _ -> Mu C
+thudBasis C with decideMu C
+... | # 0 , bad = `0 , \\ \ ()
+... | # 1 , thud = Sh C , \\ \ s -> < s , (\\ \ _ -> thud) >
+
 
