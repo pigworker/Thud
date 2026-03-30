@@ -1,0 +1,12 @@
+This project builds on an established pair-proving partnership, in which we collaborate on all aspects of theory, theorem-proving, implementation, and writing for publication.
+
+
+
+The team comprises two mathematicians working in computer science departments on type theory, category theory, functional programming and symbolic computation since the 1990s. Both specialise in the structure of data, combinatorial and differential, on which this project turns. Moreover, both have contributed heavily to mechanised mathematics: systems, metatheory, libraries and design. We have the experience and the imagination to deliver foundational insights and solid formalised results.
+
+
+
+We seek a novel theory of program reconstruction by black box testing, given assumptions finitely bounding the peculiarity of their implementations. We plan to weaponise this theory in the form of a Lean library of theorems which characterize the exhaustiveness of strategies for learning programs, thus automating proofs of theorems which currently require guided use of induction. In numeric computation, results like sum [1 .. n] = n*(n+1)/2 are often proven inductively. But, in fact, the degree of a formula bounds the testing required to learn it. Our example is provable with 3 tests because, by inspection, both formulae are quadratic in n. Our mission is to develop the analogous theory for symbolic rather than numeric computation: for the recursive functions over inductive data readily definable in systems like Lean. We need to find the appropriate differential calculus for these functions, then quantify a notion of recursive "gnarliness" which limits the information in their implementations and thus determines the testing strategy adequate to their reconstruction.
+
+These results will be widely applicable in combinatorics, algebra and functional programming, as well as shedding light on the suitability of training data for AI models. The theory of "containers", giving inductive data their node structures, has a spatial notion of derivative which accounts generically for change to input: what characterizes the corresponding change to output? We expect to find out!
+
